@@ -123,12 +123,12 @@ action
 
 
 
-#$query = "SELECT * FROM __instancecreationevent
- #         WITHIN 3
-  #        WHERE targetinstance ISA 'Win32_NTLogEvent'
-   #       AND targetinstance.logfile='Security'
-    #      AND targetinstance.Eventcode='4625'"
+$query = "SELECT * FROM __instancecreationevent
+         WITHIN 3
+         WHERE targetinstance ISA 'Win32_NTLogEvent'
+         AND targetinstance.logfile='Security'
+         AND targetinstance.Eventcode='4625'"
 
-#$action = {action}
+$action = {action}
 
-#Register-WmiEvent -query $query -SourceId 'test' -Action $action
+Register-WmiEvent -query $query -SourceId 'test' -Action $action
