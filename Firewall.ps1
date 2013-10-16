@@ -118,8 +118,10 @@ function action
    dossier
    $log = getlog
    $ip = getip $log
-   ajout $ip
-   
+   if ( -not ($ip -eq "-"))
+   {
+        ajout $ip
+   }
    
 }
 
