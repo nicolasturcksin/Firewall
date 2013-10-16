@@ -4,7 +4,7 @@ $script='C:\Program Files (x86)\Firewall\script'
 $logfile='C:\Program Files (x86)\Firewall\log'
 
 function dossier(){
-   Write-Host "je verifie les dossiers" | Out-File $logfile
+   "je verifie les dossiers" | Out-File $logfile
     if ( -not (Test-Path $dossier))
     {
        mkdir $dossier
@@ -28,7 +28,7 @@ ip,comp,fw" | Out-File $donnee
 #qui a declenche le script
 function getlog
 {
-    Write-Host "je recupere le log" | Out-File $logfile
+    "je recupere le log" | Out-File $logfile
     $log = Get-EventLog Security -InstanceId 4625 -Newest 1
     return $log
 }
