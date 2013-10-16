@@ -4,7 +4,7 @@ $script='C:\Program Files (x86)\Firewall\script'
 $logfile='C:\Program Files (x86)\Firewall\log'
 
 function dossier(){
-   Write-Host "je verifie les dossiers" 
+   Write-Host "je verifie les dossiers" | Out-File $logfile
     if ( -not (Test-Path $dossier))
     {
        mkdir $dossier
@@ -28,25 +28,23 @@ ip,comp,fw" | Out-File $donnee
 #qui a declenche le script
 function getlog
 {
-    Write-Host "je recupere le log"
+    Write-Host "je recupere le log" | Out-File $logfile
     $log = Get-EventLog Security -InstanceId 4625 -Newest 1
-    $log >> $logfile
     return $log
 }
 
 #Cette fonction permet de recuperer l ip contenu dans le log
 function getip($log){
-    Write-Host "je recupere l'ip" 
+    "je recupere l'ip" | Out-File $logfile
     $log.Message > "$dossier\temp"
     $ip = Select-String -path "$dossier\temp" -pattern "Source Network Address"  
-    $ip = $ip -split '\t'
-    Write-Host $ip[2] 
+    $ip = $ip -split '\t' 
     return $ip[2]
 }
 
 #Cette fonction permet de verifier si l ip existe sur la whiteliste ou DB
 function check($ip,$chemin){
-    Write-Host "je check si l ip existe" 
+    "je check si l ip existe" | Out-File $logfile
     $found = Select-string -path $chemin -Pattern $ip
     if ( $found -eq $null)
     {
@@ -61,7 +59,7 @@ function check($ip,$chemin){
 #Cette fonction cree in script qui va permettre la suppression 
 #de la regle firewall dans 7 jours
 function script($ip){
-     Write-Host "je cree le script pour suprrimer firewall" 
+     "je cree le script pour suprrimer firewall" | Out-File $logfile
      "netsh advfirewall firewall del rule name=$ip`n
      sleep 2`n
      schtasks /delete /tn $ip /f`n
@@ -71,7 +69,7 @@ function script($ip){
 #Cette fonction permet de rajouter une regle dans le firewall
 #Pour blocker l ip qui a deja fait plus de 3 tentative
 function firewall($ip){
-    Write-Host "je rajoute la regle + crontab"
+    "je rajoute la regle + crontab" | Out-File $logfile
     netsh advfirewall firewall add rule name=$ip dir=in action=block remoteip=$ip
     script $ip
     $date = (Get-Date).AddDays(7).ToString('dd/MM/yyyy') 
@@ -83,16 +81,16 @@ function firewall($ip){
 function ajout($ip){
     if ((check $ip "$dossier\whiteliste") -eq 0)
     {
-        Write-Host "l ip n est pas dans whiteliste" 
+        "l ip n est pas dans whiteliste" | Out-File $logfile
         if ((check $ip $donnee) -eq 0)
         {
-            Write-Host "l ip n est pas dans donnee ajout de celle-ci" 
+            "l ip n est pas dans donnee ajout de celle-ci" | Out-File $logfile
             # IP,OCCURENCE,PRESENT FW
             "$ip,1,NO"| Out-File -Append -FilePath $donnee
         }
         else
         {
-            Write-Host "l ip est deja dans donnee incremente son compteur" 
+            "l ip est deja dans donnee incremente son compteur" | Out-File $logfile
             $liste = @(Import-Csv $donnee)
             $index = select-string -path $donnee -Pattern $ip
             $index = $index -split ':'
@@ -102,7 +100,7 @@ function ajout($ip){
             $comp++
             if ( $comp -gt 3 )
             {
-                Write-Host "l ip a plus de 3 test je rajoute dans le firewall" 
+               "l ip a plus de 3 test je rajoute dans le firewall" | Out-File $logfile
                firewall $ip 
             }
             $liste[$index].comp = $comp
@@ -116,7 +114,7 @@ function ajout($ip){
 #cette fonction est la fonction principale
 function action
 {
-   Write-Host "log 4625 cree"
+   "log 4625 cree" | Out-File $logfile
    dossier
    $log = getlog
    $ip = getip $log
