@@ -1,0 +1,13 @@
+1) move instsrv.exe & srvany.exe to system32
+
+2) command prompt :" instsrv.exe %nomduservice% "c:\programfile\windows\system32\srvany.exe
+
+3) regedit HKLM\System\Currentsontroleset\service\waitlist
+
+4) New key name : "Parameters"
+
+5) in parametre new sring value : "Applicaiton"
+
+6) value :"c:\windows\system32\windowspowershell ...\powershell.exe -noexit c:\%ton script%
+
+7) net start %service%
