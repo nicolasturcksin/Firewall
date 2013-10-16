@@ -1,9 +1,10 @@
 ﻿$dossier='C:\Program Files (x86)\Firewall'
 $donnee='C:\Program Files (x86)\Firewall\donnee'
 $script='C:\Program Files (x86)\Firewall\script'
+$logfile='C:\Program Files (x86)\Firewall\log'
 
 function dossier(){
-   
+   Write-Host "je verifie les dossiers" >> $logfile
     if ( -not (Test-Path $dossier))
     {
        mkdir $dossier
@@ -27,20 +28,25 @@ ip,comp,fw" | Out-File $donnee
 #qui a declenche le script
 function getlog
 {
+    Write-Host "je recupere le log" >> $logfile
     $log = Get-EventLog Security -InstanceId 4625 -Newest 1
+    $log >> $logfile
     return $log
 }
 
 #Cette fonction permet de recuperer l ip contenu dans le log
 function getip($log){
+    Write-Host "je recupere l'ip" >> $logfile
     $log.Message > "$dossier\temp"
     $ip = Select-String -path "$dossier\temp" -pattern "Source Network Address"  
     $ip = $ip -split '\t'
+    Write-Host $ip[2] >> $logfile
     return $ip[2]
 }
 
 #Cette fonction permet de verifier si l ip existe sur la whiteliste ou DB
 function check($ip,$chemin){
+    Write-Host "je check si l ip existe" >> $logfile
     $found = Select-string -path $chemin -Pattern $ip
     if ( $found -eq $null)
     {
@@ -55,26 +61,20 @@ function check($ip,$chemin){
 #Cette fonction cree in script qui va permettre la suppression 
 #de la regle firewall dans 7 jours
 function script($ip){
+     Write-Host "je cree le script pour suprrimer firewall" >> $logfile
      "netsh advfirewall firewall del rule name=$ip`n
      sleep 2`n
      schtasks /delete /tn $ip /f`n
      remove-item `"$script\$ip.ps1`"" | out-file $script\$ip.ps1
 }
 
-function newdat(){
-    $1=(get-date).AddDays(7)
-    $jour=$1.Day
-    $mois=$1.Month
-    $annee=$1.Year
-    $date= echo "$jour/$mois/$annee"
-    return $date 
-}
 #Cette fonction permet de rajouter une regle dans le firewall
 #Pour blocker l ip qui a deja fait plus de 3 tentative
 function firewall($ip){
+    Write-Host "je rajoute la regle + crontab" >> $logfile
     netsh advfirewall firewall add rule name=$ip dir=in action=block remoteip=$ip
     script $ip
-    $date = newdat 
+    $date = (Get-Date).AddDays(7).ToString('dd/MM/yyyy') 
     schtasks /create /sc once /st 23:00 /sd $date /tn $ip /TR "powershell -command `"&{$dir\script\$ip.ps1}`""
 }
 
@@ -83,13 +83,16 @@ function firewall($ip){
 function ajout($ip){
     if ((check $ip "$dossier\whiteliste") -eq 0)
     {
+        Write-Host "l ip n est pas dans whiteliste" >> $logfile
         if ((check $ip $donnee) -eq 0)
         {
+            Write-Host "l ip n est pas dans donnee ajout de celle-ci" >> $logfile
             # IP,OCCURENCE,PRESENT FW
             "$ip,1,NO"| Out-File -Append -FilePath $donnee
         }
         else
         {
+            Write-Host "l ip est deja dans donnee incremente son compteur" >> $logfile
             $liste = @(Import-Csv $donner)
             $index = select-string -path $donnee -Pattern $ip
             $index = $index -split ':'
@@ -98,6 +101,7 @@ function ajout($ip){
             $comp++
             if ( $comp -gt 3 )
             {
+                Write-Host "l ip a plus de 3 test je rajoute dans le firewall" >> $logfile
                firewall $ip 
             }
             $liste[$index].comp = $comp
@@ -110,6 +114,7 @@ function ajout($ip){
 #cette fonction est la fonction principale
 function action
 {
+   Write-Host "log 4625 cree"
    dossier
    $log = getlog
    $ip = getip $log
@@ -121,13 +126,12 @@ function action
 
 
 
-
 $query = "SELECT * FROM __instancecreationevent
-         WITHIN 3
-         WHERE targetinstance ISA 'Win32_NTLogEvent'
+          WITHIN 3
+          WHERE targetinstance ISA 'Win32_NTLogEvent'
          AND targetinstance.logfile='Security'
-         AND targetinstance.Eventcode='4625'"
+          AND targetinstance.Eventcode='4625'"
 
 $action = {action}
 
-Register-WmiEvent -query $query -SourceId 'test' -Action $action
+Register-WmiEvent -query $query -SourceId 'firewall' -Action $action
