@@ -4,7 +4,6 @@ $script='C:\Program Files (x86)\Firewall\script'
 $logfile='C:\Program Files (x86)\Firewall\log'
 
 function dossier(){
-   "je verifie les dossiers" | Out-File $logfile
     if ( -not (Test-Path $dossier))
     {
        mkdir $dossier
@@ -21,6 +20,10 @@ ip,comp,fw" | Out-File $donnee
     if ( -not (Test-Path $script))
     {
         mkdir $script
+    }
+    if ( -not (Test-Path $logfile))
+    {
+        New-Item $logfile -type file
     }    
 
 }
@@ -28,23 +31,32 @@ ip,comp,fw" | Out-File $donnee
 #qui a declenche le script
 function getlog
 {
-    "je recupere le log" | Out-File $logfile
+    "je recupere le log" | Out-File $logfile -Append
     $log = Get-EventLog Security -InstanceId 4625 -Newest 1
     return $log
 }
 
 #Cette fonction permet de recuperer l ip contenu dans le log
 function getip($log){
-    "je recupere l'ip" | Out-File $logfile
+    "je recupere l'ip" | Out-File $logfile -Append
     $log.Message > "$dossier\temp"
-    $ip = Select-String -path "$dossier\temp" -pattern "Source Network Address"  
+    $test=Get-Host
+    if ( $test.CurrentUICulture.Name -eq "en-us")
+    {
+        $ip = Select-String -path "$dossier\temp" -pattern "Source Network Address" 
+    }
+    else
+    {
+        $ip = Select-String -path "$dossier\temp" -pattern "Adresse Du Réseau Source"
+    } 
     $ip = $ip -split '\t' 
+    $ip[2] | Out-File $logfile
     return $ip[2]
 }
 
 #Cette fonction permet de verifier si l ip existe sur la whiteliste ou DB
 function check($ip,$chemin){
-    "je check si l ip existe" | Out-File $logfile
+    "je check si l ip existe" | Out-File $logfile -Append
     $found = Select-string -path $chemin -Pattern $ip
     if ( $found -eq $null)
     {
@@ -59,7 +71,7 @@ function check($ip,$chemin){
 #Cette fonction cree in script qui va permettre la suppression 
 #de la regle firewall dans 7 jours
 function script($ip){
-     "je cree le script pour suprrimer firewall" | Out-File $logfile
+     "je cree le script pour suprrimer firewall" | Out-File $logfile -Append
      "netsh advfirewall firewall del rule name=$ip`n
      sleep 2`n
      schtasks /delete /tn $ip /f`n
@@ -69,7 +81,7 @@ function script($ip){
 #Cette fonction permet de rajouter une regle dans le firewall
 #Pour blocker l ip qui a deja fait plus de 3 tentative
 function firewall($ip){
-    "je rajoute la regle + crontab" | Out-File $logfile
+    "je rajoute la regle + crontab" | Out-File $logfile -Append
     netsh advfirewall firewall add rule name=$ip dir=in action=block remoteip=$ip
     script $ip
     $date = (Get-Date).AddDays(7).ToString('dd/MM/yyyy') 
@@ -81,16 +93,16 @@ function firewall($ip){
 function ajout($ip){
     if ((check $ip "$dossier\whiteliste") -eq 0)
     {
-        "l ip n est pas dans whiteliste" | Out-File $logfile
+        "l ip n est pas dans whiteliste" | Out-File $logfile -Append
         if ((check $ip $donnee) -eq 0)
         {
-            "l ip n est pas dans donnee ajout de celle-ci" | Out-File $logfile
+            "l ip n est pas dans donnee ajout de celle-ci" | Out-File $logfile -Append
             # IP,OCCURENCE,PRESENT FW
             "$ip,1,NO"| Out-File -Append -FilePath $donnee
         }
         else
         {
-            "l ip est deja dans donnee incremente son compteur" | Out-File $logfile
+            "l ip est deja dans donnee incremente son compteur" | Out-File $logfile -Append
             $liste = @(Import-Csv $donnee)
             $index = select-string -path $donnee -Pattern $ip
             $index = $index -split ':'
@@ -100,7 +112,7 @@ function ajout($ip){
             $comp++
             if ( $comp -gt 3 )
             {
-               "l ip a plus de 3 test je rajoute dans le firewall" | Out-File $logfile
+               "l ip a plus de 3 test je rajoute dans le firewall" | Out-File $logfile -Append
                firewall $ip 
             }
             $liste[$index].comp = $comp
@@ -114,7 +126,6 @@ function ajout($ip){
 #cette fonction est la fonction principale
 function action
 {
-   "log 4625 cree" | Out-File $logfile
    dossier
    $log = getlog
    $ip = getip $log
